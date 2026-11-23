@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EL BODEGÓN - Sistema de Gestión</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f1f5f2;color:#20352a}
+header{background:#174c38;color:white;padding:24px;text-align:center}
+header h1{margin:0;font-size:30px}
+nav{display:flex;flex-wrap:wrap;gap:8px;padding:14px;background:white;justify-content:center}
+button{border:0;border-radius:7px;padding:12px 16px;background:#198754;color:white;cursor:pointer;font-weight:bold}
+nav button{background:#e3eee7;color:#174c38}
+nav button.active{background:#174c38;color:white}
+main{max-width:1050px;margin:22px auto;padding:0 15px}
+section{display:none;background:white;padding:20px;border-radius:12px;box-shadow:0 2px 9px #0001}
+section.active{display:block}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.card{background:#e9f3ed;padding:18px;border-radius:10px}
+.card strong{display:block;font-size:23px;margin-top:8px;color:#17613e}
+input,select{width:100%;padding:12px;margin:6px 0 14px;border:1px solid #cbd8cf;border-radius:7px}
+label{font-weight:bold;font-size:14px}
+form{max-width:550px}
+table{width:100%;border-collapse:collapse;margin-top:15px}
+th,td{padding:11px;border-bottom:1px solid #ddd;text-align:left}
+th{background:#e9f3ed}
+.table-wrap{overflow-x:auto}
+.alert{background:#fff0d7;padding:12px;border-radius:8px;margin:10px 0}
+small{color:#65766b}
+.danger{background:#b93838}
+footer{text-align:center;color:#718078;padding:25px}
+</style>
+</head>
+<body>
+<header>
+<h1>🏪 EL BODEGÓN</h1>
+<p>Sistema inteligente de gestión comercial</p>
+</header>
+<nav>
+<button class="active" onclick="mostrar('inicio',this)">Inicio</button>
+<button onclick="mostrar('productos',this)">Productos</button>
+<button onclick="mostrar('ventas',this)">Ventas</button>
+<button onclick="mostrar('compras',this)">Compras</button>
+<button onclick="mostrar('historial',this)">Historial</button>
+<button onclick="mostrar('asistente',this)">Asistente</button>
+</nav>
+<main>
+<section id="inicio" class="active">
+<h2>Panel principal</h2>
+<div class="cards">
+<div class="card">Productos registrados<strong id="totalProductos">0</strong></div>
+<div class="card">Ventas acumuladas<strong id="totalVentas">₲ 0</strong></div>
+<div class="card">Ganancia estimada<strong id="ganancia">₲ 0</strong></div>
+<div class="card">Productos con stock bajo<strong id="stockBajo">0</strong></div>
+</div>
+<h3>Alertas de inventario</h3>
+<div id="alertas"></div>
+</section>
+
+<section id="productos">
+<h2>Registrar productos</h2>
+<form id="formProducto">
+<label>Nombre del producto</label>
+<input id="nombre" required placeholder="Ej. Coca-Cola 2 litros">
+<label>Categoría</label>
+<select id="categoria">
+<option>Bebidas</option><option>Almacén</option>
+<option>Lácteos</option><option>Limpieza</option>
+<option>Snacks</option><option>Higiene personal</option>
+</select>
+<label>Precio de compra (₲)</label>
+<input id="precioCompra" type="number" min="0" required>
+<label>Precio de venta (₲)</label>
+<input id="precioVenta" type="number" min="0" required>
+<label>Stock inicial</label>
+<input id="stock" type="number" min="0" required>
+<button type="submit">Guardar producto</button>
+</form>
+<h3>Inventario</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Producto</th><th>Categoría</th><th>Compra</th><th>Venta</th><th>Stock</th></tr></thead>
+<tbody id="tablaProductos"></tbody>
+</table></div>
+</section>
+
+<section id="ventas">
+<h2>Registrar venta</h2>
+<form id="formVenta">
+<label>Producto</label>
+<select id="productoVenta" required></select>
+<label>Cantidad</label>
+<input id="cantidadVenta" type="number" min="1" value="1" required>
+<label>Medio de pago</label>
+<select id="pago"><option>Efectivo</option><option>Transferencia</option><option>Crédito</option></select>
+<button type="submit">Registrar venta</button>
+</form>
+<div id="resultadoVenta"></div>
+</section>
+
+<section id="compras">
+<h2>Registrar compra o reposición</h2>
+<form id="formCompra">
+<label>Producto</label>
+<select id="productoCompra" required></select>
+<label>Cantidad comprada</label>
+<input id="cantidadCompra" type="number" min="1" required>
+<button type="submit">Agregar al inventario</button>
+</form>
+</section>
+
+<section id="historial">
+<h2>Historial de movimientos</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Fecha</th><th>Movimiento</th><th>Producto</th><th>Cantidad</th><th>Total</th></tr></thead>
+<tbody id="tablaHistorial"></tbody>
+</table></div>
+</section>
+
+<section id="asistente">
+<h2>🤖 Asistente de reposición</h2>
+<p>Este primer asistente analiza el stock registrado y señala qué productos necesitan reposición.</p>
+<button onclick="analizarStock()">Analizar inventario</button>
+<div id="recomendaciones"></div>
+<small>Esta primera versión utiliza reglas automáticas. La conexión a una IA avanzada se incorporará en otra etapa.</small>
+</section>
+</main>
+<footer>EL BODEGÓN · Sistema de gestión comercial</footer>
+
+<script>
+let productos=JSON.parse(localStorage.getItem('bodegon_productos')||'[]');
+let movimientos=JSON.parse(localStorage.getItem('bodegon_movimientos')||'[]');
+let ventas=JSON.parse(localStorage.getItem('bodegon_ventas')||'[]');
+const dinero=n=>'₲ '+Number(n).toLocaleString('es-PY');
+
+function guardar(){
+ localStorage.setItem('bodegon_productos',JSON.stringify(productos));
+ localStorage.setItem('bodegon_movimientos',JSON.stringify(movimientos));
+ localStorage.setItem('bodegon_ventas',JSON.stringify(ventas));
+ actualizar();
+}
+function mostrar(id,boton){
+ document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+ document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+ boton.classList.add('active');
+ actualizar();
+}
+function actualizar(){
+ document.getElementById('totalProductos').textContent=productos.length;
+ document.getElementById('totalVentas').textContent=dinero(ventas.reduce((a,v)=>a+v.total,0));
+ document.getElementById('ganancia').textContent=dinero(ventas.reduce((a,v)=>a+v.ganancia,0));
+ document.getElementById('stockBajo').textContent=productos.filter(p=>p.stock<=5).length;
+ document.getElementById('tablaProductos').innerHTML=productos.map(p=>
+ `<tr><td>${esc(p.nombre)}</td><td>${esc(p.categoria)}</td><td>${dinero(p.compra)}</td><td>${dinero(p.venta)}</td><td>${p.stock}</td></tr>`).join('');
+ document.getElementById('alertas').innerHTML=productos.filter(p=>p.stock<=5).map(p=>
+ `<div class="alert">⚠️ ${esc(p.nombre)}: quedan ${p.stock} unidades. ¡Reponer!</div>`).join('')||'No hay alertas de stock.';
+ ['productoVenta','productoCompra'].forEach(id=>{
+ let sel=document.getElementById(id),old=sel.value;
+ sel.innerHTML='<option value="">Elegir producto</option>'+productos.map(p=>`<option value="${p.id}">${esc(p.nombre)} (stock: ${p.stock})</option>`).join('');
+ if(productos.some(p=>String(p.id)===old))sel.value=old;
+ });
+ document.getElementById('tablaHistorial').innerHTML=movimientos.slice().reverse().map(m=>
+ `<tr><td>${m.fecha}</td><td>${m.tipo}</td><td>${esc(m.nombre)}</td><td>${m.cantidad}</td><td>${dinero(m.total)}</td></tr>`).join('');
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+document.getElementById('formProducto').addEventListener('submit',e=>{
+ e.preventDefault();
+ let compra=Number(precioCompra.value),venta=Number(precioVenta.value),cantidad=Number(stock.value);
+ if(venta<compra){alert('El precio de venta no debería ser menor al de compra.');return;}
+ productos.push({id:Date.now(),nombre:nombre.value.trim(),categoria:categoria.value,compra,venta,stock:cantidad});
+ movimientos.push({fecha:new Date().toLocaleString('es-PY'),tipo:'Alta de producto',nombre:nombre.value,cantidad,total:compra*cantidad});
+ e.target.reset();guardar();alert('Producto guardado correctamente.');
+});
+document.getElementById('formVenta').addEventListener('submit',e=>{
+ e.preventDefault();
+ let p=productos.find(x=>x.id===Number(productoVenta.value)),cant=Number(cantidadVenta.value);
+ if(!p||cant<1)return;
+ if(cant>p.stock){alert('No hay suficiente stock. Disponible: '+p.stock);return;}
+ p.stock-=cant;
+ let total=p.venta*cant,ganancia=(p.venta-p.compra)*cant;
+ ventas.push({total,ganancia});
+ movimientos.push({fecha:new Date().toLocaleString('es-PY'),tipo:'Venta - '+pago.value,nombre:p.nombre,cantidad:cant,total});
+ guardar();
+ document.getElementById('resultadoVenta').innerHTML='<div class="alert">Venta registrada: '+dinero(total)+' · '+pago.value+'<br>Ganancia estimada: '+dinero(ganancia)+'<br><button onclick="imprimir()">Imprimir comprobante</button></div>';
+ e.target.reset();
+});
+document.getElementById('formCompra').addEventListener('submit',e=>{
+ e.preventDefault();
+ let p=productos.find(x=>x.id===Number(productoCompra.value)),cant=Number(cantidadCompra.value);
+ if(!p||cant<1)return;
+ p.stock+=cant;
+ movimientos.push({fecha:new Date().toLocaleString('es-PY'),tipo:'Compra/reposición',nombre:p.nombre,cantidad:cant,total:p.compra*cant});
+ guardar();e.target.reset();alert('Stock actualizado correctamente.');
+});
+function analizarStock(){
+ let bajos=productos.filter(p=>p.stock<=5);
+ document.getElementById('recomendaciones').innerHTML=bajos.length?
+ bajos.map(p=>`<div class="alert">🛒 Comprar ${Math.max(10-p.stock,5)} unidades de ${esc(p.nombre)}. Stock actual: ${p.stock}.</div>`).join(''):
+ '<p>Todos los productos tienen más de 5 unidades.</p>';
+}
+function imprimir(){
+ let ultimo=movimientos.slice().reverse().find(m=>m.tipo.startsWith('Venta'));
+ if(!ultimo)return;
+ let texto='EL BODEGÓN\nCOMPROBANTE DE VENTA\n'+ultimo.fecha+'\n'+ultimo.nombre+'\nCantidad: '+ultimo.cantidad+'\nTotal: '+dinero(ultimo.total)+'\n¡Gracias por su compra!';
+ let w=window.open('','_blank');
+ if(w){w.document.write('<pre style="font:16px Arial;white-space:pre-wrap">'+esc(texto)+'</pre>');w.document.close();w.print();}
+}
+actualizar();
+</script>
+</body>
+</html>
