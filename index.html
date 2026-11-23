@@ -1,4 +1,4 @@
-DOCTYPE html>
+!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -9,7 +9,7 @@ DOCTYPE html>
 body{margin:0;font-family:Arial,sans-serif;background:#f1f5f2;color:#20352a}
 header{background:#174c38;color:white;padding:24px;text-align:center}
 header h1{margin:0;font-size:30px}
-nav{display:flex;flex-wrap:wrap;gap:8px;padding:14px;background:white;justify-content:center}
+nav{display:flex;flex-wrap:wrap;gap:8px;padding:14px;background:white;justify-content:center;position:sticky;top:0;z-index:10}
 button{border:0;border-radius:7px;padding:12px 16px;background:#198754;color:white;cursor:pointer;font-weight:bold}
 nav button{background:#e3eee7;color:#174c38}
 nav button.active{background:#174c38;color:white}
@@ -29,19 +29,23 @@ th{background:#e9f3ed}
 .alert{background:#fff0d7;padding:12px;border-radius:8px;margin:10px 0}
 small{color:#65766b}
 .danger{background:#b93838}
+.btn-small{padding:6px 10px;font-size:13px;margin:2px}
+.btn-blue{background:#2a6cb6}
 footer{text-align:center;color:#718078;padding:25px}
 </style>
 </head>
 <body>
 <header>
 <h1>🏪 EL BODEGÓN</h1>
-<p>Sistema inteligente de gestión comercial</p>
+<p>Sistema inteligente de gestión comercial · Concepción</p>
 </header>
 <nav>
 <button class="active" onclick="mostrar('inicio',this)">Inicio</button>
 <button onclick="mostrar('productos',this)">Productos</button>
 <button onclick="mostrar('ventas',this)">Ventas</button>
 <button onclick="mostrar('compras',this)">Compras</button>
+<button onclick="mostrar('fiado',this)">Fiado</button>
+<button onclick="mostrar('caja',this)">Caja</button>
 <button onclick="mostrar('historial',this)">Historial</button>
 <button onclick="mostrar('asistente',this)">Asistente</button>
 </nav>
@@ -53,9 +57,11 @@ footer{text-align:center;color:#718078;padding:25px}
 <div class="card">Ventas acumuladas<strong id="totalVentas">₲ 0</strong></div>
 <div class="card">Ganancia estimada<strong id="ganancia">₲ 0</strong></div>
 <div class="card">Productos con stock bajo<strong id="stockBajo">0</strong></div>
+<div class="card">En Fiado<strong id="totalFiadoDash">₲ 0</strong></div>
 </div>
 <h3>Alertas de inventario</h3>
 <div id="alertas"></div>
+<button onclick="exportarCSV()">📥 Descargar reporte en Excel (CSV)</button>
 </section>
 
 <section id="productos">
@@ -75,11 +81,13 @@ footer{text-align:center;color:#718078;padding:25px}
 <input id="precioVenta" type="number" min="0" required>
 <label>Stock inicial</label>
 <input id="stock" type="number" min="0" required>
-<button type="submit">Guardar producto</button>
+<button type="submit" id="btnGuardar">Guardar producto</button>
+<button type="button" class="btn-blue" onclick="cancelarEdicion()" id="btnCancelar" style="display:none">Cancelar edición</button>
 </form>
 <h3>Inventario</h3>
+<input id="buscador" placeholder="🔍 Buscar producto..." oninput="actualizar()">
 <div class="table-wrap"><table>
-<thead><tr><th>Producto</th><th>Categoría</th><th>Compra</th><th>Venta</th><th>Stock</th></tr></thead>
+<thead><tr><th>Producto</th><th>Categoría</th><th>Compra</th><th>Venta</th><th>Stock</th><th>Acción</th></tr></thead>
 <tbody id="tablaProductos"></tbody>
 </table></div>
 </section>
@@ -93,6 +101,8 @@ footer{text-align:center;color:#718078;padding:25px}
 <input id="cantidadVenta" type="number" min="1" value="1" required>
 <label>Medio de pago</label>
 <select id="pago"><option>Efectivo</option><option>Transferencia</option><option>Crédito</option></select>
+<label>¿Con cuánto paga? (para vuelto)</label>
+<input id="pagaCon" type="number" placeholder="Ej: 50000">
 <button type="submit">Registrar venta</button>
 </form>
 <div id="resultadoVenta"></div>
@@ -109,6 +119,25 @@ footer{text-align:center;color:#718078;padding:25px}
 </form>
 </section>
 
+<section id="fiado">
+<h2>📓 Fiado - Clientes que deben</h2>
+<form id="formFiado">
+<label>Nombre del cliente</label>
+<input id="clienteFiado" required placeholder="Ej: Don Juan">
+<label>Monto (₲)</label>
+<input id="montoFiado" type="number" required>
+<button type="submit">Anotar fiado</button>
+</form>
+<div id="listaFiado"></div>
+</section>
+
+<section id="caja">
+<h2>💰 Caja del día</h2>
+<p>Ventas de hoy: <strong id="cajaHoy">₲ 0</strong></p>
+<button onclick="cerrarCaja()">Cerrar caja y guardar reporte</button>
+<div id="reporteCaja"></div>
+</section>
+
 <section id="historial">
 <h2>Historial de movimientos</h2>
 <div class="table-wrap"><table>
@@ -119,10 +148,10 @@ footer{text-align:center;color:#718078;padding:25px}
 
 <section id="asistente">
 <h2>🤖 Asistente de reposición</h2>
-<p>Este primer asistente analiza el stock registrado y señala qué productos necesitan reposición.</p>
+<p>Analiza el stock y te dice qué comprar.</p>
 <button onclick="analizarStock()">Analizar inventario</button>
 <div id="recomendaciones"></div>
-<small>Esta primera versión utiliza reglas automáticas. La conexión a una IA avanzada se incorporará en otra etapa.</small>
+<small>Versión con reglas automáticas. La IA avanzada se incorpora en otra etapa.</small>
 </section>
 </main>
 <footer>EL BODEGÓN · Sistema de gestión comercial</footer>
@@ -131,81 +160,75 @@ footer{text-align:center;color:#718078;padding:25px}
 let productos=JSON.parse(localStorage.getItem('bodegon_productos')||'[]');
 let movimientos=JSON.parse(localStorage.getItem('bodegon_movimientos')||'[]');
 let ventas=JSON.parse(localStorage.getItem('bodegon_ventas')||'[]');
+let fiados=JSON.parse(localStorage.getItem('bodegon_fiados')||'[]');
+let editandoId=null;
 const dinero=n=>'₲ '+Number(n).toLocaleString('es-PY');
-
-function guardar(){
- localStorage.setItem('bodegon_productos',JSON.stringify(productos));
- localStorage.setItem('bodegon_movimientos',JSON.stringify(movimientos));
- localStorage.setItem('bodegon_ventas',JSON.stringify(ventas));
- actualizar();
-}
-function mostrar(id,boton){
- document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));
- document.getElementById(id).classList.add('active');
- document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
- boton.classList.add('active');
- actualizar();
-}
+function guardar(){localStorage.setItem('bodegon_productos',JSON.stringify(productos));localStorage.setItem('bodegon_movimientos',JSON.stringify(movimientos));localStorage.setItem('bodegon_ventas',JSON.stringify(ventas));localStorage.setItem('bodegon_fiados',JSON.stringify(fiados));actualizar();}
+function mostrar(id,boton){document.querySelectorAll('main section').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));boton.classList.add('active');actualizar();}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function actualizar(){
  document.getElementById('totalProductos').textContent=productos.length;
  document.getElementById('totalVentas').textContent=dinero(ventas.reduce((a,v)=>a+v.total,0));
  document.getElementById('ganancia').textContent=dinero(ventas.reduce((a,v)=>a+v.ganancia,0));
  document.getElementById('stockBajo').textContent=productos.filter(p=>p.stock<=5).length;
- document.getElementById('tablaProductos').innerHTML=productos.map(p=>
- `<tr><td>${esc(p.nombre)}</td><td>${esc(p.categoria)}</td><td>${dinero(p.compra)}</td><td>${dinero(p.venta)}</td><td>${p.stock}</td></tr>`).join('');
- document.getElementById('alertas').innerHTML=productos.filter(p=>p.stock<=5).map(p=>
- `<div class="alert">⚠️ ${esc(p.nombre)}: quedan ${p.stock} unidades. ¡Reponer!</div>`).join('')||'No hay alertas de stock.';
- ['productoVenta','productoCompra'].forEach(id=>{
- let sel=document.getElementById(id),old=sel.value;
- sel.innerHTML='<option value="">Elegir producto</option>'+productos.map(p=>`<option value="${p.id}">${esc(p.nombre)} (stock: ${p.stock})</option>`).join('');
- if(productos.some(p=>String(p.id)===old))sel.value=old;
- });
- document.getElementById('tablaHistorial').innerHTML=movimientos.slice().reverse().map(m=>
- `<tr><td>${m.fecha}</td><td>${m.tipo}</td><td>${esc(m.nombre)}</td><td>${m.cantidad}</td><td>${dinero(m.total)}</td></tr>`).join('');
+ document.getElementById('totalFiadoDash').textContent=dinero(fiados.reduce((a,f)=>a+f.monto,0));
+ let q=(document.getElementById('buscador').value||'').toLowerCase();
+ let filtrados=productos.filter(p=>p.nombre.toLowerCase().includes(q));
+ document.getElementById('tablaProductos').innerHTML=filtrados.map(p=>`<tr><td>${esc(p.nombre)}</td><td>${esc(p.categoria)}</td><td>${dinero(p.compra)}</td><td>${dinero(p.venta)}</td><td>${p.stock}</td><td><button class="btn-small btn-blue" onclick="editar(${p.id})">Editar</button><button class="btn-small danger" onclick="eliminar(${p.id})">Borrar</button></td></tr>`).join('')||'<tr><td colspan=6>Sin productos</td></tr>';
+ document.getElementById('alertas').innerHTML=productos.filter(p=>p.stock<=5).map(p=>`<div class="alert">⚠️ ${esc(p.nombre)}: quedan ${p.stock} unidades. ¡Reponer!</div>`).join('')||'No hay alertas de stock.';
+ ['productoVenta','productoCompra'].forEach(id=>{let sel=document.getElementById(id),old=sel.value;sel.innerHTML='<option value="">Elegir producto</option>'+productos.map(p=>`<option value="${p.id}">${esc(p.nombre)} (stock: ${p.stock})</option>`).join('');if(productos.some(p=>String(p.id)===old))sel.value=old;});
+ document.getElementById('tablaHistorial').innerHTML=movimientos.slice().reverse().map(m=>`<tr><td>${m.fecha}</td><td>${m.tipo}</td><td>${esc(m.nombre)}</td><td>${m.cantidad}</td><td>${dinero(m.total)}</td></tr>`).join('');
+ document.getElementById('listaFiado').innerHTML=fiados.map((f,i)=>`<div class="alert">👤 ${esc(f.cliente)} debe ${dinero(f.monto)} <button class="btn-small" onclick="pagarFiado(${i})">Ya pagó ✅</button></div>`).join('')||'<p>Nadie debe. ¡Bien ahí!</p>';
+ let hoy=new Date().toLocaleDateString('es-PY');
+ let ventasHoy=movimientos.filter(m=>m.fecha.includes(hoy)&&m.tipo.startsWith('Venta'));
+ document.getElementById('cajaHoy').textContent=dinero(ventasHoy.reduce((a,m)=>a+m.total,0));
 }
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function editar(id){let p=productos.find(x=>x.id===id);if(!p)return;editandoId=id;document.getElementById('nombre').value=p.nombre;document.getElementById('categoria').value=p.categoria;document.getElementById('precioCompra').value=p.compra;document.getElementById('precioVenta').value=p.venta;document.getElementById('stock').value=p.stock;document.getElementById('btnGuardar').textContent='Guardar cambios';document.getElementById('btnCancelar').style.display='block';mostrar('productos',document.querySelectorAll('nav button')[1]);window.scrollTo(0,0);}
+function cancelarEdicion(){editandoId=null;document.getElementById('formProducto').reset();document.getElementById('btnGuardar').textContent='Guardar producto';document.getElementById('btnCancelar').style.display='none';}
+function eliminar(id){if(!confirm('¿Borrar este producto?'))return;productos=productos.filter(p=>p.id!==id);guardar();}
+function pagarFiado(i){fiados.splice(i,1);guardar();alert('Fiado pagado ✅');}
+function cerrarCaja(){let total=document.getElementById('cajaHoy').textContent;document.getElementById('reporteCaja').innerHTML='<div class="alert">✅ Caja cerrada: '+total+' - Fecha: '+new Date().toLocaleString('es-PY')+'</div>';}
+function exportarCSV(){let csv='Producto,Categoria,Compra,Venta,Stock\n'+productos.map(p=>`${p.nombre},${p.categoria},${p.compra},${p.venta},${p.stock}`).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='bodegon_reporte.csv';a.click();}
+
 document.getElementById('formProducto').addEventListener('submit',e=>{
  e.preventDefault();
- let compra=Number(precioCompra.value),venta=Number(precioVenta.value),cantidad=Number(stock.value);
+ let compra=Number(document.getElementById('precioCompra').value),venta=Number(document.getElementById('precioVenta').value),cantidad=Number(document.getElementById('stock').value);
  if(venta<compra){alert('El precio de venta no debería ser menor al de compra.');return;}
- productos.push({id:Date.now(),nombre:nombre.value.trim(),categoria:categoria.value,compra,venta,stock:cantidad});
- movimientos.push({fecha:new Date().toLocaleString('es-PY'),tipo:'Alta de producto',nombre:nombre.value,cantidad,total:compra*cantidad});
- e.target.reset();guardar();alert('Producto guardado correctamente.');
+ let datos={nombre:document.getElementById('nombre').value.trim(),categoria:document.getElementById('categoria').value,compra,venta,stock:cantidad};
+ if(editandoId){let p=productos.find(x=>x.id===editandoId);Object.assign(p,datos);alert('Producto actualizado ✅');}
+ else{productos.push({id:Date.now(),...datos});movimientos.push({fecha:new Date().toLocaleString('es-PY'),tipo:'Alta de producto',nombre:datos.nombre,cantidad,total:compra*cantidad});alert('Producto guardado ✅');}
+ cancelarEdicion();guardar();
 });
 document.getElementById('formVenta').addEventListener('submit',e=>{
  e.preventDefault();
- let p=productos.find(x=>x.id===Number(productoVenta.value)),cant=Number(cantidadVenta.value);
+ let p=productos.find(x=>x.id===Number(document.getElementById('productoVenta').value)),cant=Number(document.getElementById('cantidadVenta').value);
  if(!p||cant<1)return;
  if(cant>p.stock){alert('No hay suficiente stock. Disponible: '+p.stock);return;}
  p.stock-=cant;
  let total=p.venta*cant,ganancia=(p.venta-p.compra)*cant;
+ let paga=Number(document.getElementById('pagaCon').value)||0;
+ let vuelto=paga>0?paga-total:0;
  ventas.push({total,ganancia});
- movimientos.push({fecha:new Date().toLocaleString('es-PY'),tipo:'Venta - '+pago.value,nombre:p.nombre,cantidad:cant,total});
+ movimientos.push({fecha:new Date().toLocaleString('es-PY'),tipo:'Venta - '+document.getElementById('pago').value,nombre:p.nombre,cantidad:cant,total});
  guardar();
- document.getElementById('resultadoVenta').innerHTML='<div class="alert">Venta registrada: '+dinero(total)+' · '+pago.value+'<br>Ganancia estimada: '+dinero(ganancia)+'<br><button onclick="imprimir()">Imprimir comprobante</button></div>';
+ document.getElementById('resultadoVenta').innerHTML='<div class="alert">Venta: '+dinero(total)+' · Ganancia: '+dinero(ganancia)+(paga?'<br>Pagó: '+dinero(paga)+' · Vuelto: '+dinero(vuelto):'')+'<br><button onclick="imprimir()">Imprimir comprobante</button></div>';
  e.target.reset();
 });
 document.getElementById('formCompra').addEventListener('submit',e=>{
  e.preventDefault();
- let p=productos.find(x=>x.id===Number(productoCompra.value)),cant=Number(cantidadCompra.value);
+ let p=productos.find(x=>x.id===Number(document.getElementById('productoCompra').value)),cant=Number(document.getElementById('cantidadCompra').value);
  if(!p||cant<1)return;
  p.stock+=cant;
  movimientos.push({fecha:new Date().toLocaleString('es-PY'),tipo:'Compra/reposición',nombre:p.nombre,cantidad:cant,total:p.compra*cant});
- guardar();e.target.reset();alert('Stock actualizado correctamente.');
+ guardar();e.target.reset();alert('Stock actualizado ✅');
 });
-function analizarStock(){
- let bajos=productos.filter(p=>p.stock<=5);
- document.getElementById('recomendaciones').innerHTML=bajos.length?
- bajos.map(p=>`<div class="alert">🛒 Comprar ${Math.max(10-p.stock,5)} unidades de ${esc(p.nombre)}. Stock actual: ${p.stock}.</div>`).join(''):
- '<p>Todos los productos tienen más de 5 unidades.</p>';
-}
-function imprimir(){
- let ultimo=movimientos.slice().reverse().find(m=>m.tipo.startsWith('Venta'));
- if(!ultimo)return;
- let texto='EL BODEGÓN\nCOMPROBANTE DE VENTA\n'+ultimo.fecha+'\n'+ultimo.nombre+'\nCantidad: '+ultimo.cantidad+'\nTotal: '+dinero(ultimo.total)+'\n¡Gracias por su compra!';
- let w=window.open('','_blank');
- if(w){w.document.write('<pre style="font:16px Arial;white-space:pre-wrap">'+esc(texto)+'</pre>');w.document.close();w.print();}
-}
+document.getElementById('formFiado').addEventListener('submit',e=>{
+ e.preventDefault();
+ fiados.push({cliente:document.getElementById('clienteFiado').value,monto:Number(document.getElementById('montoFiado').value)});
+ guardar();e.target.reset();alert('Fiado anotado ✅');
+});
+function analizarStock(){let bajos=productos.filter(p=>p.stock<=5);document.getElementById('recomendaciones').innerHTML=bajos.length?bajos.map(p=>`<div class="alert">🛒 Comprar ${Math.max(10-p.stock,5)} unidades de ${esc(p.nombre)}. Stock: ${p.stock}.</div>`).join(''):'<p>Todos tienen más de 5 unidades.</p>';}
+function imprimir(){let ultimo=movimientos.slice().reverse().find(m=>m.tipo.startsWith('Venta'));if(!ultimo)return;let texto='EL BODEGÓN\nCOMPROBANTE\n'+ultimo.fecha+'\n'+ultimo.nombre+'\nCant: '+ultimo.cantidad+'\nTotal: '+dinero(ultimo.total)+'\n¡Gracias!';let w=window.open('','_blank');if(w){w.document.write('<pre style="font:16px Arial;white-space:pre-wrap">'+esc(texto)+'</pre>');w.document.close();w.print();}}
 actualizar();
 </script>
 </body>
